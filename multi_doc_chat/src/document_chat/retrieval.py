@@ -124,20 +124,83 @@ def _get_google_api_key() -> str:
 
 
 def _message_to_text(message: Any) -> str:
+    """
+    Safely extract only human-readable text from a LangChain/Gemini
+    response.
 
+    Gemini may return:
+
+        content = [
+            {
+                "type": "text",
+                "text": "actual answer",
+                "extras": {
+                    "signature": "..."
+                }
+            }
+        ]
+
+    We must NOT convert the entire structure to str(), otherwise
+    Gemini's internal signature/metadata is printed as part of the
+    answer.
+    """
+
+    if message is None:
+        return ""
+
+    # Plain string
     if isinstance(message, str):
         return message
 
+    # LangChain AIMessage / BaseMessage
     if isinstance(message, BaseMessage):
         content = message.content
+    else:
+        content = message
 
-        if isinstance(content, str):
-            return content
+    # Normal string content
+    if isinstance(content, str):
+        return content.strip()
 
-        return str(content)
+    # Gemini structured content blocks
+    if isinstance(content, list):
+        text_parts: List[str] = []
 
-    return str(message)
+        for block in content:
 
+            # Example:
+            # {
+            #     "type": "text",
+            #     "text": "actual answer",
+            #     "extras": {...}
+            # }
+            if isinstance(block, dict):
+
+                block_type = block.get("type")
+
+                if block_type == "text":
+                    text = block.get("text")
+
+                    if isinstance(text, str) and text.strip():
+                        text_parts.append(text.strip())
+
+                # Some Gemini/LangChain versions may return
+                # text directly without "type".
+                elif isinstance(block.get("text"), str):
+                    text = block["text"]
+
+                    if text.strip():
+                        text_parts.append(text.strip())
+
+            # Handle non-dict content blocks defensively
+            elif isinstance(block, str):
+                if block.strip():
+                    text_parts.append(block.strip())
+
+        return "\n".join(text_parts).strip()
+
+    # Last-resort handling
+    return str(content).strip()
 
 def _history_to_text(
     chat_history: Optional[
