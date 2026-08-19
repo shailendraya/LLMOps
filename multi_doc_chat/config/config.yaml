@@ -1,13 +1,12 @@
 embedding_model:
   provider: "google"
-  model_name: "models/text-embedding-004"
+  model_name: "gemini-embedding-001"
 
 retriever:
   top_k: 10
-  search_type: "mmr"  # Options: "similarity", "mmr", "similarity_score_threshold"
-  # MMR (Maximal Marginal Relevance) parameters for diverse results
-  fetch_k: 20  # Number of documents to fetch before MMR re-ranking (should be > top_k)
-  lambda_mult: 0.5  # Diversity vs relevance (0=max diversity, 1=max relevance)
+  search_type: "mmr"
+  fetch_k: 20
+  lambda_mult: 0.5
 
 llm:
   groq:
@@ -18,6 +17,6 @@ llm:
 
   google:
     provider: "google"
-    model_name: "gemini-2.0-flash"
+    model_name: "gemini-3.6-flash"
     temperature: 0
     max_output_tokens: 2048
