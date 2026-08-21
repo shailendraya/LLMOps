@@ -954,3 +954,4 @@ class FAISSManager:
         )
 
         return self.vectorstore
+        
