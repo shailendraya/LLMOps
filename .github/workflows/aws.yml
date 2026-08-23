@@ -92,6 +92,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::834015912477:role/GitHubActionsECSDeployRole
           aws-region: ${{ env.AWS_REGION }}
+          
       - name: Verify AWS Identity
         run: aws sts get-caller-identity
 
