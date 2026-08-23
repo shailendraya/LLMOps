@@ -5,6 +5,7 @@ on:
     workflows: ["CI"]
     branches:
       - develop
+      - main
     types:
       - completed
   workflow_call:
@@ -31,8 +32,8 @@ jobs:
     if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
 
     steps:
-      - name: CI passed on develop branch
-        run: echo "CI passed on develop branch, proceeding to build and deploy."
+      - name: CI passed on main branch
+        run: echo "CI passed on main branch, proceeding to build and deploy."
 
   # -------------------------------
   # 2. Build & Push Docker Image
@@ -52,8 +53,25 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       
-      - name: Debug GitHub OIDC Claims
-        uses: github/actions-oidc-debugger@main
+      - name: Inspect GitHub OIDC claims
+        shell: bash
+        run: |
+          TOKEN_JSON=$(curl -sS \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+
+          ID_TOKEN=$(echo "$TOKEN_JSON" | jq -r '.value')
+
+          echo "$ID_TOKEN" |
+            cut -d '.' -f2 |
+            base64 -d 2>/dev/null |
+            jq '{iss, aud, sub, repository, repository_id, repository_owner, repository_owner_id, ref, event_name}'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::834015912477:role/GitHubActionsECSDeployRole
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
