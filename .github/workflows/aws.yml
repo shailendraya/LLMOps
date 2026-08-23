@@ -52,6 +52,16 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::834015912477:role/GitHubActionsECSDeployRole
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Temporary verification step
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
@@ -61,7 +71,6 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.event.workflow_run.head_sha || github.sha }}
-
 
         run: |
           IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
@@ -88,11 +97,12 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::834015912477:role/GitHubActionsECSDeployRole
           aws-region: ${{ env.AWS_REGION }}
-          
+
+      # Temporary verification step
       - name: Verify AWS Identity
         run: aws sts get-caller-identity
 
@@ -115,5 +125,5 @@ jobs:
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
 
-      - name: Done!
+      - name: Done
         run: echo "Deployed to ECS Fargate Successfully"
