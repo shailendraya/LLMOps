@@ -1,0 +1,52 @@
+{
+  "family": "llmops-rag-live-task",
+  "networkMode": "awsvpc",
+  "executionRoleArn": "arn:aws:iam::834015912477:role/ecsTaskExecutionRole",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "1024",
+  "memory": "8192",
+  "containerDefinitions": [
+    {
+      "name": "llmops-rag-live-container",
+      "image": "834015912477.dkr.ecr.us-east-1.amazonaws.com/llmopsraglive:latest",
+      "cpu": 1024,
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 8080,
+          "protocol": "tcp",
+          "name": "llmops-rag-live-container-8080-tcp",
+          "appProtocol": "http"
+        }
+      ],
+      "environment": [
+        {
+          "name": "ENV",
+          "value": "production"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:834015912477:secret:apikeyLLMOps-aQgNJi:OPENAI_API_KEY::"
+        },
+        {
+          "name": "GOOGLE_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:834015912477:secret:apikeyLLMOps-aQgNJi:GOOGLE_API_KEY::"
+        }
+],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/llmops-rag-live",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ]
+}

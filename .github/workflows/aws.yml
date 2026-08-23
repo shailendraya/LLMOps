@@ -1,43 +1,52 @@
 name: CI/CD to ECS Fargate
+
 on:
   workflow_run:
-    workflows: ["CI"] # Must match the "name" field in ci.yml
+    workflows: ["CI"]
     branches:
-      - main
-      - DeployOnAWS
+      - develop
     types:
       - completed
   workflow_call:
+
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: llmopsrepolive
-  ECS_SERVICE: llmops-live-service
-  ECS_CLUSTER: llmops-live-cluster
-  ECS_TASK_DEFINITION: .github/workflows/task_defination.json
-  CONTAINER_NAME: llmops-live-container
+  ECR_REPOSITORY: llmopsraglive
+  ECS_SERVICE: llmops-rag-live-service
+  ECS_CLUSTER: llmops-rag-live-cluster
+  ECS_TASK_DEFINITION: .github/workflows/task_definition.json
+  CONTAINER_NAME: llmops-rag-live-container
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
+
+  # -------------------------------
+  # 1. Check CI Status
+  # -------------------------------
   check-status:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
+
     steps:
-      - name: CI passed on main branch
-        run: echo "CI passed on main branch, proceeding to build and deploy."
+      - name: CI passed on develop branch
+        run: echo "CI passed on develop branch, proceeding to build and deploy."
 
   # -------------------------------
-  # 1. Build & Push Docker Image
+  # 2. Build & Push Docker Image
   # -------------------------------
   build-and-push:
     name: Build & Push Docker Image
     needs: [check-status]
     runs-on: ubuntu-latest
+
     outputs:
       image: ${{ steps.build-image.outputs.image }}
+
     steps:
+
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
@@ -46,8 +55,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::834015912477:role/GitHubActionsECSDeployRole
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -59,21 +67,26 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.event.workflow_run.head_sha || github.sha }}
+
         run: |
           IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
+
           echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
 
   # -------------------------------
-  # 2. Deploy to ECS
+  # 3. Deploy to ECS
   # -------------------------------
   deploy:
     name: Deploy to ECS Fargate
     needs: build-and-push
     runs-on: ubuntu-latest
+
     steps:
+
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
@@ -82,8 +95,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::834015912477:role/GitHubActionsECSDeployRole
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Render Task Definition
@@ -93,8 +105,10 @@ jobs:
           task-definition: ${{ env.ECS_TASK_DEFINITION }}
           container-name: ${{ env.CONTAINER_NAME }}
           image: ${{ needs.build-and-push.outputs.image }}
+
       - name: Print Rendered Task
         run: cat ${{ steps.render-task.outputs.task-definition }}
+
       - name: Deploy to ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
@@ -102,5 +116,6 @@ jobs:
           service: ${{ env.ECS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
+
       - name: Done!
         run: echo "Deployed to ECS Fargate Successfully"
