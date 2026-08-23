@@ -51,6 +51,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      
+      - name: Debug GitHub OIDC Claims
+        uses: github/actions-oidc-debugger@main
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
