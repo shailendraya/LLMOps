@@ -66,12 +66,6 @@ jobs:
             base64 -d 2>/dev/null |
             jq '{iss, aud, sub, repository, repository_id, repository_owner, repository_owner_id, ref, event_name}'
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::834015912477:role/GitHubActionsECSDeployRole
-          aws-region: ${{ env.AWS_REGION }}
-
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
